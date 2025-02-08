@@ -24,99 +24,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 exports.adminPage = async (req, res, next) => {
-    try {
-        // 1. จำนวนผู้ใช้งาน
-        const totalUsersCount = await User.countDocuments();
-        // **จำนวนผู้ใช้งานที่ใช้งานอยู่ในปัจจุบัน (Active Users)**
-        const onlineUsersCount = await User.countDocuments({
-            lastActive: { $gte: moment().subtract(5, 'minutes').toDate() }
-        }); // Active in the last 15 minutes
-        // คำนวณจำนวนผู้ใช้งานใหม่ในแต่ละวันของสัปดาห์ที่ผ่านมา
-        const newUserCounts = await User.aggregate([
-            {
-                $match: {
-                    createdAt: {
-                        $gte: moment().subtract(7, 'days').startOf('day').toDate(),
-                        $lte: moment().endOf('day').toDate()
-                    }
-                }
-            },
-            {
-                $group: {
-                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { _id: 1 } }
-        ]);
-
-        // 2. รายงานปัญหาจากผู้ใช้งาน
-        const totalComplaintsCount = await Complaint.countDocuments();
-        const openComplaintsCount = await Complaint.countDocuments({ status: 'Open' });
-        const inProgressComplaintsCount = await Complaint.countDocuments({ status: 'In Progress' });
-
-        // จำนวนปัญหาแต่ละประเภท
-        const complaintsByCategoryAndStatus = await Complaint.aggregate([
-            {
-                $group: {
-                    _id: { category: "$category", status: "$status" },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id.category",
-                    statuses: {
-                        $push: {
-                            status: "$_id.status",
-                            count: "$count"
-                        }
-                    }
-                }
-            }
-        ]);
-
-        // 3.  ผู้ใช้ที่เห็นประกาศระบบ (สมมติว่าการเห็นประกาศคือการมี Notification ที่ status เป็น 'accepted')
-        const totalAnnouncements = await SystemAnnouncement.countDocuments();
-        const seenAnnouncementsCount = await Notification.countDocuments({ type: 'announcement', status: 'accepted' });
-        const seenPercentage = totalAnnouncements > 0 ? (seenAnnouncementsCount / totalAnnouncements) * 100 : 0;
-
-        // 5. การใช้งานระบบ (System Usage) - สมมติว่าใช้ lastActive เป็นตัววัดการใช้งาน
-        const systemUsage = await User.aggregate([
-            {
-                $group: {
-                    _id: {
-                        $dateToString: { format: "%Y-%m-%d %H:00", date: "$lastActive" } // จัดกลุ่มตามวันและชั่วโมง
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { _id: 1 } } // เรียงลำดับตามวันและเวลา
-        ]);
         console.log(complaintsByCategoryAndStatus)
         res.render('admin/Dashboard_admin', {
             title: 'Admin Page',
             user: req.user,
-            layout: "../views/layouts/adminPage",
-
-            // ข้อมูลสำหรับแดชบอร์ด
-            totalUsersCount,
-            onlineUsersCount,
-            newUserCounts,
-            totalAnnouncements,
-            openComplaintsCount,
-            inProgressComplaintsCount,
-            complaintsByCategoryAndStatus,
-            seenAnnouncementsCount,
-            seenPercentage,
-            systemUsage
+            layout: "../views/layouts/adminPage",    
         });
-
-    } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        req.flash('error', 'เกิดข้อผิดพลาดในการดึงข้อมูลแดชบอร์ด');
-        res.redirect('/admin/adminPage');
-    }
 };
 
 exports.getCountByStatus = async (category, status) => {
