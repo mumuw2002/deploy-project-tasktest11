@@ -24,7 +24,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 exports.adminPage = async (req, res, next) => {
-        console.log(complaintsByCategoryAndStatus)
         res.render('admin/Dashboard_admin', {
             title: 'Admin Page',
             user: req.user,
